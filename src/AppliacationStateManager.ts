@@ -6,7 +6,6 @@ interface IWarning {
 	data?: any
 	type: "warning" | "fatal"
 }
-
 export abstract class ApplicationStateManager {
 	static warnings: IWarning[] = []
 	private static status: "healthy" | "partial" | "fatal" = "healthy"

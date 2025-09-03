@@ -1,4 +1,3 @@
-
 import {
 	CallHandler,
 	ExecutionContext,
@@ -6,7 +5,7 @@ import {
 	Logger,
 	Module,
 	NestInterceptor,
-	ValidationPipe,
+	ValidationPipe
 } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 import { NestExpressApplication } from "@nestjs/platform-express"
@@ -17,37 +16,54 @@ import {
 	ArgumentsHost,
 	Catch,
 	ExceptionFilter,
-	HttpStatus,
+	HttpStatus
 } from "@nestjs/common"
 
 import { WsAdapter } from "@nestjs/platform-ws"
 import { Response } from "express"
 import { map } from "rxjs"
-import { GezcezError, LoggerMiddleware } from "@gezcez/core"
+import {
+	BuildAuthenticationGuard,
+	GezcezError,
+	GezcezResponse,
+	LoggerMiddleware
+} from "@gezcez/core"
 import { TemplateController } from "@services/template/template.controller"
 import { IndexController } from "@services/IndexController"
 
+const CollectorAuthGuard = BuildAuthenticationGuard({
+	aud: `collector-${process.env.COLLECTOR_NAME}`,
+	issuer: "internal.gezcez.com",
+	secret: process.env.JWT_SECRET
+})
 @Module({
-	controllers:[TemplateController,IndexController]
+	controllers: [TemplateController, IndexController]
 })
 export class AppModule {}
 
-
 export async function bootstrap(ignore_listen?: boolean) {
-	Logger.log(`Project init successfull, bootstrapping server [COLLECTOR_TYPE=${process.env.COLLECTOR_NAME}]`)
+	Logger.log(
+		`Project init successfull, bootstrapping server [COLLECTOR_TYPE=${process.env.COLLECTOR_NAME}]`
+	)
 	const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-		cors: true,
+		cors: true
 	})
 	app.useGlobalPipes(new ValidationPipe())
-	
+
 	app.use(LoggerMiddleware)
+	app.useGlobalGuards(new CollectorAuthGuard())
 	app.useGlobalInterceptors(new ResponseInterceptor())
 	app.useWebSocketAdapter(new WsAdapter(app))
 	const openapi_doc = new DocumentBuilder()
 		.setTitle(`collector-${process.env.COLLECTOR_NAME} API Documentation`)
 		.setDescription(`private docs for collector-${process.env.COLLECTOR_NAME}`)
 		.setVersion("1.0.0")
-		.setContact("phasenull.dev", "https://phasenull.dev", "contact@phasenull.dev")
+		.setContact(
+			"phasenull.dev",
+			"https://phasenull.dev",
+			"contact@phasenull.dev"
+		)
+		.addBearerAuth()
 		.build()
 	app.useGlobalFilters(new ErrorHandler())
 	const document = SwaggerModule.createDocument(app, openapi_doc)
@@ -55,7 +71,7 @@ export async function bootstrap(ignore_listen?: boolean) {
 		"/docs",
 		apiReference({
 			theme: "bluePlanet",
-			content: document,
+			content: document
 		})
 	)
 	SwaggerModule.setup("swagger", app, document)
@@ -74,27 +90,31 @@ class ErrorHandler implements ExceptionFilter {
 		const ctx = host.switchToHttp()
 		const response = ctx.getResponse()
 		const request = ctx.getRequest()
-		
+
 		// console.log(response.json())
 		const status =
-			exception.result?.status || exception.status || HttpStatus.INTERNAL_SERVER_ERROR
-		if (![404,400,403,401,200].includes(status)) {
-			console.error("global exception",status,exception.status,exception)
+			exception.result?.status ||
+			exception.status ||
+			HttpStatus.INTERNAL_SERVER_ERROR
+		if (![404, 400, 403, 401, 200].includes(status)) {
+			console.error("global exception", status, exception.status, exception)
 		}
 		response.status(status).json(
 			exception.result?.message
 				? {
 						...exception,
-						result: { ...exception.result, path: request.path },
-				  }
+						result: { ...exception.result, path: request.path }
+					}
 				: {
 						...getGezcezResponseFromStatus(exception?.result?.status || status),
 						result: {
-							...(getGezcezResponseFromStatus(exception?.result?.status || status)).result,
-							message:exception.response?.message,
-							path: request.path,
-						},
-				  }
+							...getGezcezResponseFromStatus(
+								exception?.result?.status || status
+							).result,
+							message: exception.response?.message,
+							path: request.path
+						}
+					}
 		)
 	}
 }
@@ -121,7 +141,7 @@ function getGezcezResponseFromStatus(status: number) {
 	switch (status) {
 		case 500: {
 			return GezcezError("INTERNAL_SERVER_ERROR", {
-				__message: "Sunucu hata verdi :(",
+				__message: "Sunucu hata verdi :("
 			})
 		}
 		case 404: {
@@ -129,22 +149,22 @@ function getGezcezResponseFromStatus(status: number) {
 		}
 		case 400: {
 			return GezcezError("BAD_REQUEST", {
-				__message: "Sunucuya hatalı istek yolladın.",
+				__message: "Sunucuya hatalı istek yolladın."
 			})
 		}
 		case 401: {
 			return GezcezError("UNAUTHORIZED", {
-				__message: "Bu işlemi gerçekleştirmek için giriş yapmalısın.",
+				__message: "Bu işlemi gerçekleştirmek için giriş yapmalısın."
 			})
 		}
 		case 403: {
 			return GezcezError("FORBIDDEN", {
-				__message: "Bu işlemi gerçekleştirebilmek için yeterli iznin yok.",
+				__message: "Bu işlemi gerçekleştirebilmek için yeterli iznin yok."
 			})
 		}
 		default: {
 			return GezcezError("INTERNAL_SERVER_ERROR", {
-				__message: `Sunucuda düşünemediğimiz gizemli bir hata oluştu (${status})`,
+				__message: `Sunucuda düşünemediğimiz gizemli bir hata oluştu (${status})`
 			})
 		}
 	}
