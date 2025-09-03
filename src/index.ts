@@ -23,11 +23,12 @@ import {
 import { WsAdapter } from "@nestjs/platform-ws"
 import { Response } from "express"
 import { map } from "rxjs"
-import { GezcezError } from "@gezcez/core"
+import { GezcezError, LoggerMiddleware } from "@gezcez/core"
 import { TemplateController } from "@services/template/template.controller"
+import { IndexController } from "@services/IndexController"
 
 @Module({
-	controllers:[TemplateController]
+	controllers:[TemplateController,IndexController]
 })
 export class AppModule {}
 
@@ -38,11 +39,13 @@ export async function bootstrap(ignore_listen?: boolean) {
 		cors: true,
 	})
 	app.useGlobalPipes(new ValidationPipe())
+	
+	app.use(LoggerMiddleware)
 	app.useGlobalInterceptors(new ResponseInterceptor())
 	app.useWebSocketAdapter(new WsAdapter(app))
 	const openapi_doc = new DocumentBuilder()
-		.setTitle("Gezcez.com Public API Documentation")
-		.setDescription("Public API docs for Gezcez.com")
+		.setTitle(`collector-${process.env.COLLECTOR_NAME} API Documentation`)
+		.setDescription(`private docs for collector-${process.env.COLLECTOR_NAME}`)
 		.setVersion("1.0.0")
 		.setContact("phasenull.dev", "https://phasenull.dev", "contact@phasenull.dev")
 		.build()
