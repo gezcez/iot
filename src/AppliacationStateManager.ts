@@ -20,9 +20,9 @@ export abstract class ApplicationStateManager {
 		this.config = config
 		Logger.log(`Set application config to ${JSON.stringify(this.config,undefined,4)}`,"ApplicationStateManager")
 	}
-	public static async signPayload(payload: any) {
+	public static async signPayload(payload: any,secret_override?:string) {
 		if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not defined")
-		const secret = process.env.JWT_SECRET
+		const secret = secret_override || process.env.JWT_SECRET
 		const stringified = JSON.stringify(payload)
 		const encoded = Buffer.from(stringified).toString("base64")
 		const hasher = new Bun.CryptoHasher("sha256",secret)
@@ -30,10 +30,10 @@ export abstract class ApplicationStateManager {
 		const signature = hasher.digest("hex")
 		return `${encoded}.${signature}`
 	}
-	public static async verifyPayload(signed_payload: string) {
+	public static async verifyPayload(signed_payload: string,secret_override?:string) {
 		if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not defined")
-		const secret = process.env.JWT_SECRET
-		
+		const secret = secret_override || process.env.JWT_SECRET
+
 		const [encoded, signature] = signed_payload.split(".")
 		const hasher = new Bun.CryptoHasher("sha256",secret)
 		hasher.update(encoded)
