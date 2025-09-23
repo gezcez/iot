@@ -30,6 +30,7 @@ import {
 } from "@gezcez/core"
 import { TemplateController } from "@services/template/template.controller"
 import { IndexController } from "@services/IndexController"
+import { SignJWT } from "jose"
 
 const CollectorAuthGuard = BuildAuthenticationGuard({
 	aud: `collector-${process.env.COLLECTOR_NAME}`,
@@ -50,6 +51,25 @@ export async function bootstrap(ignore_listen?: boolean) {
 	})
 	app.useGlobalPipes(new ValidationPipe())
 
+	if (process.env.NODE_ENV !== "production") {
+		const is_generate_prod_token = process.argv.includes("--token")
+		const token_sub = is_generate_prod_token
+			? process.argv[process.argv.indexOf("--token") + 1]
+			: undefined
+		if (is_generate_prod_token) {
+			if (!token_sub) {
+				throw new Error("You must provide a subject with --sub <subject>")
+			}
+			const new_token = await new SignJWT({ type: "internal-token" })
+				.setProtectedHeader({ alg: "HS256", typ: "JWT" })
+				.setSubject(token_sub)
+				.setAudience("iot.gezcez.com")
+				.setIssuer("iot.gezcez.com")
+				.setExpirationTime(is_generate_prod_token ? "1y" : "24h")
+				.sign(new TextEncoder().encode(process.env.JWT_SECRET + "_jwt_token"))
+			Logger.debug(`Sample JWT Token (valid for 24h): ${new_token}`)
+		}
+	}
 	app.use(LoggerMiddleware)
 	app.useGlobalGuards(new CollectorAuthGuard())
 	app.useGlobalInterceptors(new ResponseInterceptor())
