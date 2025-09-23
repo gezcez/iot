@@ -28,17 +28,18 @@ import {
 	GezcezResponse,
 	LoggerMiddleware
 } from "@gezcez/core"
-import { TemplateController } from "@services/template/template.controller"
+import { IOTController } from "@services/iot/iot.controller"
 import { IndexController } from "@services/IndexController"
 import { SignJWT } from "jose"
 
 const CollectorAuthGuard = BuildAuthenticationGuard({
-	aud: `collector-${process.env.COLLECTOR_NAME}`,
-	issuer: "internal.gezcez.com",
-	secret: process.env.JWT_SECRET
+	aud: `iot.gezcez.com`,
+	issuer: "iot.gezcez.com",
+	secret: `${process.env.JWT_SECRET}_jwt_token`,
+	form_based: true
 })
 @Module({
-	controllers: [TemplateController, IndexController]
+	controllers: [IOTController,IndexController]
 })
 export class AppModule {}
 
@@ -67,16 +68,15 @@ export async function bootstrap(ignore_listen?: boolean) {
 				.setIssuer("iot.gezcez.com")
 				.setExpirationTime(is_generate_prod_token ? "1y" : "24h")
 				.sign(new TextEncoder().encode(process.env.JWT_SECRET + "_jwt_token"))
-			Logger.debug(`Sample JWT Token (valid for 24h): ${new_token}`)
+			Logger.debug(`Sample JWT Token (valid for ${is_generate_prod_token ? "1y" : "24h"}): ${new_token}`)
 		}
 	}
 	app.use(LoggerMiddleware)
 	app.useGlobalGuards(new CollectorAuthGuard())
 	app.useGlobalInterceptors(new ResponseInterceptor())
-	app.useWebSocketAdapter(new WsAdapter(app))
 	const openapi_doc = new DocumentBuilder()
-		.setTitle(`collector-${process.env.COLLECTOR_NAME} API Documentation`)
-		.setDescription(`private docs for collector-${process.env.COLLECTOR_NAME}`)
+		.setTitle(`collector-${process.env.COLLECTOR_NAME || ""} API Documentation`)
+		.setDescription(`private docs for collector-${process.env.COLLECTOR_NAME || ""}`)
 		.setVersion("1.0.0")
 		.setContact(
 			"phasenull.dev",
@@ -151,7 +151,6 @@ export class ResponseInterceptor implements NestInterceptor {
 			map((data) => {
 				// Example: Override status code if needed
 				response.status(data?.result?.status || 500)
-
 				return data
 			})
 		)

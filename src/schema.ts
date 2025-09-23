@@ -12,13 +12,14 @@ export const logsTable = sqliteTable("logs", {
    id: int().primaryKey({ autoIncrement: true }),
    device_id: int().notNull(),
    message: text().notNull(),
-   created_at: int({mode: "timestamp_ms"}).notNull(),
-   received_at: int({mode: "timestamp_ms"}).defaultNow().notNull(),
-   level: text().notNull().default("log").$type<"log" | "warn" | "error">()
+   created_at: int({mode: "timestamp_ms"}).defaultNow().notNull(),
+   lifetime: int(),
+   level: text().notNull().default("log").$type<"log" | "warn" | "error">(),
+   ip: text().notNull()
 },(self)=>[
    index("device_logs_table").on(self.device_id,self.created_at),
-   index("device_logs_table").on(self.device_id,self.level),
-   index("device_logs_table").on(self.received_at)
+   index("device_logs_table").on(self.device_id,self.level,self.created_at),
+   index("device_logs_table").on(self.created_at)
 ]);
 
 export const configTable = sqliteTable("config", {
