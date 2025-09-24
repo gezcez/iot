@@ -82,7 +82,7 @@ export class IOTController {
 			device_id: parseInt(req["payload"].sub),
 			message: message,
 			level: level || "<unknown>",
-			ip: remote_ip,
+			ip: remote_ip||"<unknown>",
 			lifetime: parseInt(unix_time)
 		})
 		console.log("Request IP:", ip)
