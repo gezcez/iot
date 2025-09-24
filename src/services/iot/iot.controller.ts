@@ -8,28 +8,6 @@ import { and, asc, eq, isNull } from "drizzle-orm"
 	path: ""
 })
 export class IOTController {
-	@Post("/log")
-	async getTemplate(
-		@Req() req: Request,
-		@Ip() ip: string,
-		@Body()
-		body: {
-			message: string
-			level?: "log" | "warn" | "error"
-			unix_time: string
-		}
-	) {
-		const { message, level, unix_time } = body
-		console.log("payload", req["payload"])
-		await db.insert(logsTable).values({
-			device_id: parseInt(req["payload"].sub),
-			message: message,
-			level: level || "log",
-			lifetime: parseInt(unix_time),
-			ip: ip
-		})
-		return GezcezResponse({ __message: "Hi from template!" })
-	}
 
 	@Post("/message")
 	async postMessage(
@@ -99,19 +77,13 @@ export class IOTController {
 		@Query("level") level: "log" | "warn" | "error",
 		@Query("unix_time") unix_time: string,
 	) {
-		const logEntry = {
-			message,
-			level: level || "log",
-			unix_time: parseInt(unix_time),
-			ip,
-			received_at: Date.now()
-		}
+		const remote_ip = process.env.NODE_ENV !== "dev" ? req.headers["CF-Connecting-IP"] : ip
 		await db.insert(logsTable).values({
 			device_id: parseInt(req["payload"].sub),
-			message: logEntry.message,
-			level: logEntry.level,
-			ip: logEntry.ip,
-			lifetime: logEntry.unix_time
+			message: message,
+			level: level || "<unknown>",
+			ip: remote_ip,
+			lifetime: parseInt(unix_time)
 		})
 		console.log("Request IP:", ip)
 		return GezcezResponse({ __message: "Hi from template!" })
