@@ -89,4 +89,31 @@ export class IOTController {
 		console.log("Updated message as read")
 		return message_row.message
 	}
+
+	
+	@Post("/log")
+	async log(
+		@Req() req: Request,
+		@Ip() ip: string,
+		@Query("message") message: string,
+		@Query("level") level: "log" | "warn" | "error",
+		@Query("unix_time") unix_time: string,
+	) {
+		const logEntry = {
+			message,
+			level: level || "log",
+			unix_time: parseInt(unix_time),
+			ip,
+			received_at: Date.now()
+		}
+		await db.insert(logsTable).values({
+			device_id: parseInt(req["payload"].sub),
+			message: logEntry.message,
+			level: logEntry.level,
+			ip: logEntry.ip,
+			lifetime: logEntry.unix_time
+		})
+		console.log("Request IP:", ip)
+		return GezcezResponse({ __message: "Hi from template!" })
+	}
 }
