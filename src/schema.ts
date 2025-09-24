@@ -27,8 +27,21 @@ export const configTable = sqliteTable("config", {
    device_id: int().notNull(),
    key: text().notNull(),
    value: text().notNull(),
-   created_at: int({mode: "timestamp_ms"}).notNull(),
-   updated_at: int({mode: "timestamp_ms"}).notNull()
+   created_at: int({mode: "timestamp_ms"}).notNull().defaultNow(),
+   updated_at: int({mode: "timestamp_ms"})
 },(self)=>[
    index("device_config_table").on(self.device_id,self.key)
+]);
+
+export const messageQueueTable = sqliteTable("message_queue", {
+   id: int().primaryKey({ autoIncrement: true }),
+   device_id: int().notNull(),
+   message: text().notNull(),
+   created_at: int({mode: "timestamp_ms"}).notNull().defaultNow(),
+   read_at: int({mode: "timestamp_ms"}),
+   read_ip: text(),
+   actor_id: int(),
+   actor_ip: text(),
+},(self)=>[
+   index("device_message_queue").on(self.device_id,self.created_at)
 ]);

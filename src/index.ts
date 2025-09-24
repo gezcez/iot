@@ -39,7 +39,7 @@ const CollectorAuthGuard = BuildAuthenticationGuard({
 	form_based: true
 })
 @Module({
-	controllers: [IOTController,IndexController]
+	controllers: [IOTController, IndexController]
 })
 export class AppModule {}
 
@@ -68,7 +68,19 @@ export async function bootstrap(ignore_listen?: boolean) {
 				.setIssuer("iot.gezcez.com")
 				.setExpirationTime(is_generate_prod_token ? "1y" : "24h")
 				.sign(new TextEncoder().encode(process.env.JWT_SECRET + "_jwt_token"))
-			Logger.debug(`Sample JWT Token (valid for ${is_generate_prod_token ? "1y" : "24h"}): ${new_token}`)
+			Logger.debug(
+				`Internal Token: (valid for ${is_generate_prod_token ? "1y" : "24h"}): ${new_token}`
+			)
+			const device_token = await new SignJWT({ type: "device" })
+				.setProtectedHeader({ alg: "HS256", typ: "JWT" })
+				.setSubject(token_sub)
+				.setAudience("iot.gezcez.com")
+				.setIssuer("iot.gezcez.com")
+				.setExpirationTime(is_generate_prod_token ? "1y" : "24h")
+				.sign(new TextEncoder().encode(process.env.JWT_SECRET + "_jwt_token"))
+			Logger.debug(
+				`Device Token: (valid for ${is_generate_prod_token ? "1y" : "24h"}): ${device_token}`
+			)
 		}
 	}
 	app.use(LoggerMiddleware)
@@ -76,7 +88,9 @@ export async function bootstrap(ignore_listen?: boolean) {
 	app.useGlobalInterceptors(new ResponseInterceptor())
 	const openapi_doc = new DocumentBuilder()
 		.setTitle(`collector-${process.env.COLLECTOR_NAME || ""} API Documentation`)
-		.setDescription(`private docs for collector-${process.env.COLLECTOR_NAME || ""}`)
+		.setDescription(
+			`private docs for collector-${process.env.COLLECTOR_NAME || ""}`
+		)
 		.setVersion("1.0.0")
 		.setContact(
 			"phasenull.dev",
@@ -119,6 +133,7 @@ class ErrorHandler implements ExceptionFilter {
 		if (![404, 400, 403, 401, 200].includes(status)) {
 			console.error("global exception", status, exception.status, exception)
 		}
+
 		response.status(status).json(
 			exception.result?.message
 				? {
@@ -145,12 +160,12 @@ export class ResponseInterceptor implements NestInterceptor {
 		// You can also access the request/response if needed
 		const ctx = context.switchToHttp()
 		const response = ctx.getResponse() as Response
-		// response.status(response.?.status || 500)
+		// response.status(response.result	?.status || 500)
 
 		return next.handle().pipe(
 			map((data) => {
 				// Example: Override status code if needed
-				response.status(data?.result?.status || 500)
+				response.status(data?.result?.status || response.statusCode || 500)
 				return data
 			})
 		)
